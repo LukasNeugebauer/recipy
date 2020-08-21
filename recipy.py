@@ -11,10 +11,9 @@ import re
 
 def main(url, *args, **kwargs):
     parser = _get_html_parser(url)
-    tag = _get_recipe_tag(parser)
-    recipe = _get_recipe_dict(tag)
+    recipe = _get_recipe_dict(parser)
     html = _write_html(
-        _parse_recipe(recipe),
+        recipe,
         *args, **kwargs
     )
     _open_html(html)
@@ -77,17 +76,21 @@ def _open_html(html):
     webbrowser.open(html)
 
 
-def _get_recipe_tag(parser):
+def _get_recipe_dict(parser):
     scripts = parser.find_all('script')
     scripts = list(filter(lambda x: x is not None, scripts))
     for sc in scripts:
         if sc.string is not None and \
            re.findall('"@type":\w?"Recipe"', sc.string):
-            return sc
+            return _get_recipe_dict_json(sc)
+    # if this didn't work maybe the recipe isn't in json but html
+    scripts = parser.find_all('article')
+    if len(scripts) == 1:
+        return _get_recipe_dict_html(scripts[0])
     raise RuntimeError('Couldn\'t find recipe tag in html.')
 
 
-def _get_recipe_dict(tag):
+def _get_recipe_dict_json(tag):
     _json = json.loads(tag.string)
     if isinstance(_json, dict) and _json['@type'] == 'Recipe':
         _recipe = _json
@@ -97,10 +100,6 @@ def _get_recipe_dict(tag):
         _recipe = list(filter(lambda x: x['@type'] == 'Recipe', _json))[0]
     if not _recipe:
         raise RuntimeError('Couldn\'t find recipe dictionary in json.')
-    return _recipe
-
-
-def _parse_recipe(_recipe):
     recipe = {
         new: _recipe[old] for old, new in zip(
             ['name', 'image', 'recipeIngredient', 'recipeInstructions'],
@@ -109,6 +108,22 @@ def _parse_recipe(_recipe):
     }
     recipe['instructions'] = [x['text'] for x in recipe['instructions']]
     return recipe
+
+
+def _get_recipe_dict_html(tag):
+    _tag = tag.select('div.recipe')[0]
+    title = _tag.select('h2')[0].contents[0]
+    _instructions = _tag.select('div.instructions')[0].select('li')
+    instructions = [ins.contents[0] for ins in _instructions]
+    _ingredients = _tag.select('div.ingredients')[0].select('li')
+    ingredients = [ing.contents[0] for ing in _ingredients]
+    image = _tag.select('img')[0].get('src')
+    return {
+        'title': title,
+        'ingredients': ingredients,
+        'instructions': instructions,
+        'images': image
+    }
 
 
 if __name__ == '__main__':
