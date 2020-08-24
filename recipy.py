@@ -20,8 +20,15 @@ def main(url, *args, **kwargs):
 
 
 def _get_html_parser(url):
-    html = requests.get(url).text
-    soup = BeautifulSoup(html, 'html.parser')
+    html = requests.get(url)
+    if html.status_code == 403:
+        raise RuntimeError(
+            'Requests returned error code 403: Forbidden. ' +
+            'Have a look at the website and this stackoverflow question:\n\n' + 
+            'https://stackoverflow.com/questions/38489386/python-requests-403-forbidden'
+
+        )
+    soup = BeautifulSoup(html.text, 'html.parser')
     return soup
 
 
@@ -92,7 +99,7 @@ def _get_recipe_dict(parser):
 
 def _get_recipe_dict_json(tag):
     _json = json.loads(tag.string)
-    if isinstance(_json, dict) and _json['@type'] == 'Recipe':
+    if isinstance(_json, dict) and '@type' in _json.keys():
         _recipe = _json
     else:
         if isinstance(_json, dict) and '@graph' in _json.keys():
