@@ -8,7 +8,6 @@ import webbrowser
 import argparse
 import re
 
-
 def main(url, *args, **kwargs):
     parser = _get_html_parser(url)
     recipe = _get_recipe_dict(parser)
@@ -24,7 +23,7 @@ def _get_html_parser(url):
     if html.status_code == 403:
         raise RuntimeError(
             'Requests returned error code 403: Forbidden. ' +
-            'Have a look at the website and this stackoverflow question:\n\n' + 
+            'Have a look at the website and this stackoverflow question:\n\n' +
             'https://stackoverflow.com/questions/38489386/python-requests-403-forbidden'
 
         )
@@ -48,14 +47,14 @@ def _write_html(recipe, file='', folder=None):
     <h1>{}</h1>
     {}
     </body>
-    </html> 
+    </html>
     """.format(recipe['title'], recipe['title'], '{}')
     ingredients = (
-        "<h2>Ingredients</h2>" + 
+        "<h2>Ingredients</h2>" +
         "\n".join(["<p>{}</p>".format(x) for x in recipe['ingredients']])
     ) if 'ingredients' in recipe.keys() else ""
     instructions = (
-        "<h2>Instructions</h2>" + 
+        "<h2>Instructions</h2>" +
     "\n".join(["<h4>{}</h4>\n<p>{}</p>".format(1+i,x) for i,x in enumerate(recipe['instructions'])])
     ) if 'instructions' in recipe.keys() else ""
     _image = ""
@@ -120,6 +119,8 @@ def _get_recipe_dict_json(tag):
 def _get_recipe_dict_html(tag):
     _tag = tag.select('div.recipe')[0]
     title = _tag.select('h2')[0].contents[0]
+    if str(title).startswith('<') and str(title).endswith('>'):
+        title = title.string
     _instructions = _tag.select('div.instructions')[0].select('li')
     instructions = [ins.contents[0] for ins in _instructions]
     _ingredients = _tag.select('div.ingredients')[0].select('li')
