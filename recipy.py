@@ -12,21 +12,30 @@ Latest change: use tempfile to open temporary file
 import json
 from bs4 import BeautifulSoup
 import requests
-import os
 import webbrowser
-import argparse
+import sys
 import re
 import tempfile
+import platform
+if platform.system() == 'Windows':
+    import ntpath as path
+else:
+    from os import path
 
 
-def main(url, store, *args, **kwargs):
+def main(url, filename):
     parser = _get_html_parser(url)
     recipe = _get_recipe_dict(parser)
     html = _get_html(
-        recipe,
-        *args, **kwargs
+        recipe
     )
-    _open_html(html)
+    if filename is not None:
+        filename = _save_html(filename, html)
+        _open_html(filename)
+    else:
+        with tempfile.NamedTemporaryFile('w', delete=False, suffix='.html') as f:
+            f.write(html)
+            webbrowser.open(f.name)
 
 
 def _get_html_parser(url):
@@ -43,14 +52,7 @@ def _get_html_parser(url):
     return soup
 
 
-def _write_html(recipe, file=None, folder=None):
-    if file is None:
-        file = '_'.join(recipe['title'].split())
-    if not file.endswith('.html'):
-        file += '.html'
-    if folder is None:
-        folder = '/tmp'
-    filename = os.path.join(folder, file)
+def _get_html(recipe):
     scaffolding = """
         <html>
         <head>
@@ -91,6 +93,13 @@ def _write_html(recipe, file=None, folder=None):
 
 
 def _save_html(filename, html):
+    if not filename.endswith('.html'):
+        filename += '.html'
+    # default to storing file in recipy dir
+    if path.dirname(filename) == '':
+        recipy_dir = path.dirname(path.abspath(__file__))
+        store_dir = path.join(recipy_dir, 'html')
+        filename = path.join(store_dir, filename)
     with open(filename, 'w') as f:
         f.write(html)
     print('HTML file created at {:s}'.format(filename))
@@ -158,18 +167,13 @@ def _get_recipe_dict_html(tag):
 
 if __name__ == '__main__':
 
-    #handle arguments
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        dest='url',
-        action='store',
-        type=str
-    )
-    parser.add_argument(
-        '--file',
-        dest='file',
-        action='store',
-        default=None
-    )
-    args = parser.parse_args()
-    main(args.url, args.file, args.folder)
+    argc = len(sys.argv)
+    if argc == 1:
+        raise RuntimeError('Can\'t run without URL. Use me like this:\nrecipy url [,filename]')
+    elif argc == 2:
+        url = sys.argv[1]
+        filename = None
+    elif argc == 3:
+        url = sys.argv[1]
+        filename = sys.argv[2]
+    main(url, filename)
