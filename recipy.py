@@ -1,5 +1,14 @@
 #!/usr/bin/python3
 
+
+"""
+recipy
+Script to extract the actual recipe from annoying blogs
+
+Latest change: use tempfile to open temporary file
+"""
+
+
 import json
 from bs4 import BeautifulSoup
 import requests
@@ -7,11 +16,13 @@ import os
 import webbrowser
 import argparse
 import re
+import tempfile
 
-def main(url, *args, **kwargs):
+
+def main(url, store, *args, **kwargs):
     parser = _get_html_parser(url)
     recipe = _get_recipe_dict(parser)
-    html = _write_html(
+    html = _get_html(
         recipe,
         *args, **kwargs
     )
@@ -24,30 +35,32 @@ def _get_html_parser(url):
         raise RuntimeError(
             'Requests returned error code 403: Forbidden. ' +
             'Have a look at the website and this stackoverflow question:\n\n' +
-            'https://stackoverflow.com/questions/38489386/python-requests-403-forbidden'
+            'https://stackoverflow.com/questions/38489386/' +
+            'python-requests-403-forbidden'
 
         )
     soup = BeautifulSoup(html.text, 'html.parser')
     return soup
 
 
-def _write_html(recipe, file='', folder=None):
-    if file:
+def _write_html(recipe, file=None, folder=None):
+    if file is None:
         file = '_'.join(recipe['title'].split())
     if not file.endswith('.html'):
         file += '.html'
     if folder is None:
         folder = '/tmp'
     filename = os.path.join(folder, file)
-    scaffolding = """<html>
-    <head>
-    <title>{}</title>
-    </head>
-    <body>
-    <h1>{}</h1>
-    {}
-    </body>
-    </html>
+    scaffolding = """
+        <html>
+        <head>
+        <title>{}</title>
+        </head>
+        <body>
+        <h1>{}</h1>
+        {}
+        </body>
+        </html>
     """.format(recipe['title'], recipe['title'], '{}')
     ingredients = (
         "<h2>Ingredients</h2>" +
@@ -55,7 +68,9 @@ def _write_html(recipe, file='', folder=None):
     ) if 'ingredients' in recipe.keys() else ""
     instructions = (
         "<h2>Instructions</h2>" +
-    "\n".join(["<h4>{}</h4>\n<p>{}</p>".format(1+i,x) for i,x in enumerate(recipe['instructions'])])
+        "\n".join(
+            ["<h4>{}</h4>\n<p>{}</p>".format(1+i, x)
+                for i, x in enumerate(recipe['instructions'])])
     ) if 'instructions' in recipe.keys() else ""
     _image = ""
     if 'images' in recipe.keys():
@@ -65,15 +80,19 @@ def _write_html(recipe, file='', folder=None):
             _image = recipe['images'][0]
         elif isinstance(recipe['images'], str):
             _image = recipe['images']
-    image = "<img src=\"{}\">".format(_image) if _image else ""
-    with open(filename, 'w') as f:
-        f.write(
-            scaffolding.format(
+    image = "<img src=\"{}\" style=\"height:40%\">".format(
+        _image
+    ) if _image else ""
+    return scaffolding.format(
+                image +
                 ingredients +
-                instructions +
-                image
+                instructions
             )
-        )
+
+
+def _save_html(filename, html):
+    with open(filename, 'w') as f:
+        f.write(html)
     print('HTML file created at {:s}'.format(filename))
     return filename
 
@@ -87,7 +106,7 @@ def _get_recipe_dict(parser):
     scripts = list(filter(lambda x: x is not None, scripts))
     for sc in scripts:
         if sc.string is not None and \
-           re.findall('"@type":\w?"Recipe"', sc.string):
+           re.findall(r'"@type":\w?"Recipe"', sc.string):
             return _get_recipe_dict_json(sc)
     # if this didn't work maybe the recipe isn't in json but html
     scripts = parser.find_all('article')
@@ -112,7 +131,10 @@ def _get_recipe_dict_json(tag):
             ['title', 'images', 'ingredients', 'instructions']
         ) if old in _recipe.keys()
     }
-    recipe['instructions'] = [x['text'] for x in recipe['instructions']]
+    recipe['instructions'] = [
+        x['text'] for x in recipe['instructions']
+        if 'text' in x
+    ]
     return recipe
 
 
@@ -136,17 +158,12 @@ def _get_recipe_dict_html(tag):
 
 if __name__ == '__main__':
 
+    #handle arguments
     parser = argparse.ArgumentParser()
     parser.add_argument(
         dest='url',
         action='store',
         type=str
-    )
-    parser.add_argument(
-        '--folder',
-        dest='folder',
-        action='store',
-        default='/tmp'
     )
     parser.add_argument(
         '--file',
@@ -155,4 +172,4 @@ if __name__ == '__main__':
         default=None
     )
     args = parser.parse_args()
-    main(args.url, args.folder, args.file)
+    main(args.url, args.file, args.folder)
