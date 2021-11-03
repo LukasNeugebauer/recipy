@@ -31,11 +31,11 @@ def main(url, filename):
     )
     if filename is not None:
         filename = _save_html(filename, html)
-        _open_html(filename)
     else:
         with tempfile.NamedTemporaryFile('w', delete=False, suffix='.html') as f:
             f.write(html)
-            webbrowser.open(f.name)
+            filename = f.name
+    webbrowser.open(filename)
 
 
 def _get_html_parser(url):
@@ -104,10 +104,6 @@ def _save_html(filename, html):
         f.write(html)
     print('HTML file created at {:s}'.format(filename))
     return filename
-
-
-def _open_html(html):
-    webbrowser.open(html)
 
 
 def _get_recipe_dict(parser):
