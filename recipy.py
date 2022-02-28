@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 
 """
@@ -31,11 +31,11 @@ def main(url, filename):
     )
     if filename is not None:
         filename = _save_html(filename, html)
-        _open_html(filename)
     else:
         with tempfile.NamedTemporaryFile('w', delete=False, suffix='.html') as f:
             f.write(html)
-            webbrowser.open(f.name)
+            filename = f.name
+    _open_html(filename)
 
 
 def _get_html_parser(url):
