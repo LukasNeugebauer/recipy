@@ -96,11 +96,6 @@ def _get_html(recipe):
 def _save_html(filename, html):
     if not filename.endswith(".html"):
         filename += ".html"
-    # default to storing file in recipy dir
-    if path.dirname(filename) == "":
-        recipy_dir = path.dirname(path.abspath(__file__))
-        store_dir = path.join(recipy_dir, "html")
-        filename = path.join(store_dir, filename)
     with open(filename, "w") as f:
         f.write(html)
     print("HTML file created at {:s}".format(filename))
