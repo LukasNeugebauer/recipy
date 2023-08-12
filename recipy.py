@@ -21,7 +21,10 @@ else:
 
 
 def main(url, filename):
-    parser = _get_html_parser(url)
+    """
+    Main function being called when running as a script 
+    """
+    parser = _get_html_parser(url) 
     recipe = _get_recipe_dict(parser)
     html = _get_html(recipe)
     if filename is not None:
